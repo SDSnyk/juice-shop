@@ -1,0 +1,31 @@
+name: No Snyk Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Set up Node.js environment (use Node.js 14 for juice-shop@12.3.0)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '14' # Compatible with juice-shop@12.3.0
+
+      # Install project dependencies with legacy-peer-deps
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      # Install dependencies in frontend directory (juice-shop specific)
+      - name: Install frontend dependencies
+        run: cd frontend && npm install --legacy-peer-deps && cd ..
