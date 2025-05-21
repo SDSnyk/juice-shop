@@ -16,15 +16,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Node.js environment
+      # Set up Node.js environment (use Node.js 14 for juice-shop@12.3.0)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # Use Node.js version compatible with juice-shop
+          node-version: '14' # Compatible with juice-shop@12.3.0
 
-      # Install project dependencies
+      # Install project dependencies with legacy-peer-deps
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
+
+      # Install dependencies in frontend directory (juice-shop specific)
+      - name: Install frontend dependencies
+        run: cd frontend && npm install --legacy-peer-deps && cd ..
 
       # Install Snyk CLI
       - name: Install Snyk CLI
