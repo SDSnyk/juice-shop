@@ -1,0 +1,57 @@
+name: Snyk Security Scan Demo
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Use Node.js version compatible with juice-shop
+
+      # Install project dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Install Snyk CLI
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      # Authenticate Snyk CLI
+      - name: Authenticate Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # Run Snyk test to scan for vulnerabilities
+      - name: Run Snyk Test
+        run: snyk test --file=package.json --severity-threshold=high
+        continue-on-error: true # Prevents pipeline failure for demo purposes
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # Generate SBOM and save to file
+      - name: Generate SBOM
+        run: snyk sbom --file=package.json --format=cyclonedx1.4+json --json-file-output=sbom.json
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # Upload SBOM as an artifact
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
