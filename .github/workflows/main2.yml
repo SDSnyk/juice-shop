@@ -12,19 +12,23 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16' # Adjust Node.js version as needed
+          node-version: '16' # Adjust as needed
 
-      - name: Run Snyk SAST Scan
+      - name: Install Snyk CLI and Run Snyk SAST Scan
         continue-on-error: true
         run: |
           mkdir -p snyk-results
           # Install Snyk CLI globally
           npm install -g snyk
+          # Verify Snyk installation
+          snyk --version || { echo "Snyk installation failed"; exit 1; }
           # Authenticate Snyk
-          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk auth ${{ secrets.SNYK_TOKEN }} || { echo "Snyk authentication failed"; exit 1; }
           # Run Snyk scan and capture exit code
-          snyk code test --json-file-output=snyk-results/scan-results.json || echo "Snyk command failed with exit code $?"
-          echo "SNYK_EXIT_CODE=$?" >> $GITHUB_ENV
+          snyk code test --json-file-output=snyk-results/scan-results.json
+          EXIT_CODE=$?
+          echo "SNYK_EXIT_CODE=$EXIT_CODE" >> $GITHUB_ENV
+          echo "Exit code captured: $EXIT_CODE" # Debug output
 
       - name: Check Snyk Results and Evaluate Build Failure
         env:
@@ -42,8 +46,8 @@ jobs:
               echo "✓ Snyk scan completed successfully - no vulnerabilities found"
               if [ -f "$REPORT" ]; then
                 echo "Warning: Report file exists but exit code is 0. Checking for inconsistencies..." >&2
-                sleep 1 # Add a small delay to ensure the message is fully logged
-                # Optionally parse report for inconsistencies
+                sleep 1
+                # Optionally parse report for unexpected data
               else
                 echo "✓ No issues found above priority score threshold: $THRESHOLD"
               fi
@@ -65,7 +69,7 @@ jobs:
               fi
               ;;
             2)
-              echo "Error: Snyk scan failed - please re-run the command or check configuration"
+              echo "Error: Snyk scan failed - please check configuration or unsupported language"
               exit 1
               ;;
             3)
