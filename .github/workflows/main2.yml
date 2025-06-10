@@ -9,10 +9,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Snyk
-        uses: snyk/actions/setup@master
+      # Authenticate Snyk CLI
+      - name: Authenticate Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Ensure Snyk token is set in repository secrets
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Run Snyk SAST Scan
         continue-on-error: true
