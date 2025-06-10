@@ -9,16 +9,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Authenticate Snyk CLI
-      - name: Authenticate Snyk
-        run: snyk auth ${{ secrets.SNYK_TOKEN }}
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16' # Use a specific Node.js version, adjust as needed
 
       - name: Run Snyk SAST Scan
         continue-on-error: true
         run: |
           mkdir -p snyk-results
+          # Install Snyk CLI globally
+          npm install -g snyk
+          # Authenticate Snyk (using token from secrets)
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          # Run Snyk scan and capture exit code
           snyk code test --json-file-output=snyk-results/scan-results.json || echo "Snyk command failed with exit code $?"
           echo "SNYK_EXIT_CODE=$?" >> $GITHUB_ENV
 
