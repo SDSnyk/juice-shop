@@ -12,7 +12,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16' # Use a specific Node.js version, adjust as needed
+          node-version: '16' # Adjust Node.js version as needed
 
       - name: Run Snyk SAST Scan
         continue-on-error: true
@@ -20,7 +20,7 @@ jobs:
           mkdir -p snyk-results
           # Install Snyk CLI globally
           npm install -g snyk
-          # Authenticate Snyk (using token from secrets)
+          # Authenticate Snyk
           snyk auth ${{ secrets.SNYK_TOKEN }}
           # Run Snyk scan and capture exit code
           snyk code test --json-file-output=snyk-results/scan-results.json || echo "Snyk command failed with exit code $?"
@@ -41,7 +41,9 @@ jobs:
             0)
               echo "✓ Snyk scan completed successfully - no vulnerabilities found"
               if [ -f "$REPORT" ]; then
-                echo "Warning: Report file exists but exit code is 0. Checking for inconsistencies..."
+                echo "Warning: Report file exists but exit code is 0. Checking for inconsistencies..." >&2
+                sleep 1 # Add a small delay to ensure the message is fully logged
+                # Optionally parse report for inconsistencies
               else
                 echo "✓ No issues found above priority score threshold: $THRESHOLD"
               fi
