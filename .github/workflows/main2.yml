@@ -12,18 +12,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16' # Adjust as needed
+          node-version: '16'
 
       - name: Install Snyk CLI and Run Snyk SAST Scan
         id: snyk-step
         continue-on-error: true
         run: |
           mkdir -p snyk-results
-          # Install Snyk CLI globally
+          # Install Snyk CLI globally and Auth
           npm install -g snyk || { echo "Snyk installation failed"; exit 1; }
-          # Verify Snyk installation
-          snyk --version || { echo "Snyk verification failed"; exit 1; }
-          # Authenticate Snyk
           snyk auth ${{ secrets.SNYK_TOKEN }} || { echo "Snyk authentication failed"; exit 1; }
           # Run Snyk scan and capture exit code
           if ! snyk code test --json-file-output=snyk-results/scan-results.json; then
@@ -33,7 +30,7 @@ jobs:
             EXIT_CODE=$?
           fi
           echo "SNYK_EXIT_CODE=$EXIT_CODE" >> $GITHUB_ENV
-          echo "Exit code captured: $EXIT_CODE" # Debug output
+          echo "Exit code captured: $EXIT_CODE" 
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -54,7 +51,6 @@ jobs:
               if [ -f "$REPORT" ]; then
                 echo "Warning: Report file exists but exit code is 0. Checking for inconsistencies..." >&2
                 sleep 1
-                # Optionally parse report for unexpected data
               else
                 echo "✓ No issues found above priority score threshold: $THRESHOLD"
               fi
