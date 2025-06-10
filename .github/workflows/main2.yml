@@ -1,0 +1,68 @@
+name: Snyk SAST Scan and Evaluation
+
+on: [push, pull_request]
+
+jobs:
+  snyk-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Snyk SAST Scan
+        continue-on-error: true
+        run: |
+          mkdir -p snyk-results
+          snyk code test --json-file-output=snyk-results/scan-results.json
+          echo "SNYK_EXIT_CODE=$?" >> $GITHUB_ENV
+
+      - name: Check Snyk Results and Evaluate Build Failure
+        env:
+          SNYK_EXIT_CODE: ${{ env.SNYK_EXIT_CODE }}
+          THRESHOLD: ${{ secrets.SNYK_PRIORITY_THRESHOLD || 750 }} # Default threshold if not set
+          REPORT: snyk-results/scan-results.json
+        run: |
+          echo "THRESHOLD=$THRESHOLD" >> $GITHUB_ENV
+          echo "violationsFound=false" >> $GITHUB_ENV
+          echo "nonIgnoredViolationsFound=false" >> $GITHUB_ENV
+
+          # Handle Snyk exit codes
+          case "$SNYK_EXIT_CODE" in
+            0)
+              echo "✓ Snyk scan completed successfully - no vulnerabilities found"
+              if [ -f "$REPORT" ]; then
+                echo "Warning: Report file exists but exit code is 0. Checking for inconsistencies..."
+                # Optionally parse report if needed
+              else
+                echo "✓ No issues found above priority score threshold: $THRESHOLD"
+              fi
+              ;;
+            1)
+              echo "⚠ Snyk scan completed - vulnerabilities found, proceeding with evaluation"
+              if [ -f "$REPORT" ]; then
+                echo "Report file found. Parsing for vulnerabilities..."
+                HIGH_SEVERITY_COUNT=$(jq '[.vulnerabilities[] | select(.priorityScore > $THRESHOLD and .isIgnored != true)] | length' "$REPORT" --argjson THRESHOLD "$THRESHOLD")
+                if [ "$HIGH_SEVERITY_COUNT" -gt 0 ]; then
+                  echo "Error: Found $HIGH_SEVERITY_COUNT non-ignored vulnerabilities above threshold $THRESHOLD"
+                  exit 1
+                else
+                  echo "✓ No issues found above priority score threshold: $THRESHOLD"
+                fi
+              else
+                echo "Error: Snyk indicated vulnerabilities but no report generated"
+                exit 1
+              fi
+              ;;
+            2)
+              echo "Error: Snyk scan failed - please re-run the command or check configuration"
+              exit 1
+              ;;
+            3)
+              echo "Error: No supported projects detected by Snyk - code analysis needed"
+              exit 1
+              ;;
+            *)
+              echo "Error: Snyk scan failed with unexpected exit code: $SNYK_EXIT_CODE"
+              exit 1
+              ;;
+          esac
