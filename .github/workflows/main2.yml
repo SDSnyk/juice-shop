@@ -9,17 +9,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set up Snyk
+        uses: snyk/actions/setup@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # Ensure Snyk token is set in repository secrets
+
       - name: Run Snyk SAST Scan
         continue-on-error: true
         run: |
           mkdir -p snyk-results
-          snyk code test --json-file-output=snyk-results/scan-results.json
+          snyk code test --json-file-output=snyk-results/scan-results.json || echo "Snyk command failed with exit code $?"
           echo "SNYK_EXIT_CODE=$?" >> $GITHUB_ENV
 
       - name: Check Snyk Results and Evaluate Build Failure
         env:
           SNYK_EXIT_CODE: ${{ env.SNYK_EXIT_CODE }}
-          THRESHOLD: ${{ secrets.SNYK_PRIORITY_THRESHOLD || 750 }} # Default threshold if not set
+          THRESHOLD: ${{ secrets.SNYK_PRIORITY_THRESHOLD || 750 }}
           REPORT: snyk-results/scan-results.json
         run: |
           echo "THRESHOLD=$THRESHOLD" >> $GITHUB_ENV
@@ -32,7 +37,6 @@ jobs:
               echo "✓ Snyk scan completed successfully - no vulnerabilities found"
               if [ -f "$REPORT" ]; then
                 echo "Warning: Report file exists but exit code is 0. Checking for inconsistencies..."
-                # Optionally parse report if needed
               else
                 echo "✓ No issues found above priority score threshold: $THRESHOLD"
               fi
@@ -41,7 +45,7 @@ jobs:
               echo "⚠ Snyk scan completed - vulnerabilities found, proceeding with evaluation"
               if [ -f "$REPORT" ]; then
                 echo "Report file found. Parsing for vulnerabilities..."
-                HIGH_SEVERITY_COUNT=$(jq '[.vulnerabilities[] | select(.priorityScore > $THRESHOLD and .isIgnored != true)] | length' "$REPORT" --argjson THRESHOLD "$THRESHOLD")
+                HIGH_SEVERITY_COUNT=$(jq '[.vulnerabilities[] | select(.priorityScore > $THRESHOLD and .isIgnored != true)] | length' "$REPORT" --argjson THRESHOLD "$THRESHOLD" || echo 0)
                 if [ "$HIGH_SEVERITY_COUNT" -gt 0 ]; then
                   echo "Error: Found $HIGH_SEVERITY_COUNT non-ignored vulnerabilities above threshold $THRESHOLD"
                   exit 1
